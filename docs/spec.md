@@ -1,8 +1,10 @@
 # BandIA — Especificación de producto y sistema
 
-Versión 0.6 · 9 de septiembre de 2026 · Borrador para trabajar con Martín
+Versión 0.7 · 9 de septiembre de 2026 · Borrador para trabajar con Martín
 
 Diseño de implementación: [plan de API, endpoints, estados y fases](api-implementation-plan.md). Ese documento detalla cómo concretar los objetivos; sus rutas futuras no se consideran implementadas.
+
+Diseño de operación: [análisis completo de infraestructura y autonomía](autonomous-operations.md). Especifica despliegue, persistencia, costos, accesos, disponibilidad, recuperación y parámetros pendientes; no acredita un entorno ya contratado o funcionando.
 
 ## 1. Propósito y estado de este documento
 
@@ -294,6 +296,7 @@ Próxima iteración: verificar la carga inicial en GitHub; concretar persistenci
 
 - **0.5:** Go como lenguaje principal, Python auxiliar opcional y repositorio público por decisión explícita del manager. Base HTTP separada de la futura operación de la banda. `docs/spec.md` será la fuente de verdad desde su primer commit; el documento previo es una copia histórica.
 - **0.6:** se agrega el plan completo de API y ejecución, con dominios, permisos, trabajos durables, recuperación, modelo persistente y criterios de aceptación. La base y el spec ya se publicaron en `main` en el commit `3eb0e6666514d46933e619423c250d24e37a9c6f`; esta revisión sólo cambia documentación.
+- **0.7:** análisis de operación autónoma desde el primer despliegue: alternativas de infraestructura, persistencia, costos, accesos, tiempos, CI/CD, fallos, backups, observabilidad y transición. Sólo documentación; implementación y contratación pendientes.
 
 ## 15. Lenguaje y primer incremento técnico
 
@@ -302,3 +305,23 @@ Próxima iteración: verificar la carga inicial en GitHub; concretar persistenci
 El primer incremento contiene `cmd/bandia`, `internal/httpapi`, configuración por entorno y pruebas. `GET /healthz` verifica el proceso; `GET /readyz` devuelve 503 porque el runtime de banda aún no está implementado. No se crean APIs de reuniones ficticias ni llamadas de IA simuladas como si fueran reales.
 
 La compilación y ejecución de pruebas requieren Go. El entorno de preparación no lo tenía instalado y la descarga no pudo completarse; no se afirma que estas pruebas hayan pasado. Seguir los comandos del README antes de considerar validada la base.
+
+## 16. Operación autónoma desplegada — análisis consolidado
+
+**Dirección acordada:** construir para un runtime propio desplegado, independiente de ChatGPT y de la computadora del manager. Esta iteración completa el spec; la elección de servicios y el paso a paso de implementación se resolverán después. No se provisiona infraestructura ni se activan integraciones en esta revisión.
+
+**Propuesta de arquitectura:** aplicación Go siempre activa en hosting administrado, PostgreSQL administrado para estado y cola durable, y bucket privado para medios. API, scheduler y worker pueden convivir inicialmente; los agentes conservan contextos y llamadas independientes. La base y los objetos sobreviven al ciclo de vida del contenedor. Python/FFmpeg se usan para procesamiento específico, con control de ejecución en Go.
+
+**Persistencia:** confirmar mensajes y pasos en transacciones; versionar identidad y contexto; verificar objetos antes de aceptarlos. Las fichas iniciales no sobreescriben la evolución al reiniciar. La memoria de los agentes se reconstruye con fuentes y versiones. El repositorio público contiene código y diseño, no datos productivos ni secretos.
+
+**Operación:** agenda explícita con zona horaria, occurrences únicos, recuperación de trabajo incompleto y detección externa de disparos omitidos. Propuesta para evaluar: 08:00 Buenos Aires y aviso a las 08:15. Una caída de varios días no dispara todas las reuniones atrasadas juntas. La salud del proceso, capacidad de aceptar trabajo durable y disponibilidad de IA/X se informan por separado.
+
+**Gasto y permisos:** límites de concurrencia, duración, intentos, ciclo y mes; reservas atómicas antes de llamadas pagas. Los montos siguen pendientes. Los personajes no pueden ampliar estos controles ni modificar código/credenciales. La conexión de GitHub para desarrollo, la identidad de despliegue y las claves del runtime tienen funciones separadas.
+
+**Recuperación:** los reinicios normales retoman checkpoints; los efectos remotos ambiguos se concilian. Para desastres se propone backup diario con retención de 14 días, objetivo de pérdida máxima de 24 horas y recuperación en 4 horas, sujetos a elección del servicio y prueba. Restaurar una copia vieja exige verificar publicaciones/cargos posteriores antes de reactivar jobs. Esos objetivos no son garantías actuales.
+
+**Despliegue y observación:** imagen identificada por commit, pruebas sin consumo productivo automático, migraciones compatibles, apagado ordenado, rollback de software y monitor externo. Panel con conversaciones, tareas, gastos, cobertura de feedback y bloqueos; resumen semanal y alertas con canal/destinatario por definir.
+
+**Transición:** importar con procedencia los mensajes reales ya producidos, manteniendo los ejemplos simulados separados. El corte desde la tarea de ChatGPT debe ser explícito e impedir ejecución duplicada; este spec no pausa ni cambia esa tarea.
+
+El [documento de operación](autonomous-operations.md) compara alternativas, desarrolla una jornada completa, fallos, cálculo de consumo, restauración y matriz de decisiones. Los valores de horario, concurrencia, reintentos y backups son propuestas; no se solicitará una aprobación creativa por cada canción. Lo pendiente de selección queda concentrado en proveedores, precios/límites, rúbrica de calidad y avisos.

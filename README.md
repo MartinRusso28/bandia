@@ -51,6 +51,7 @@ make build
 - `docs/decisions/0001-go.md`: Go como lenguaje principal; Python auxiliar opcional.
 - `docs/roadmap.md`: siguientes entregables y evidencia de aceptación.
 - `docs/api-implementation-plan.md`: catálogo de endpoints, permisos, modelo de datos, estados y plan completo por fases.
+- `docs/autonomous-operations.md`: infraestructura desplegada, persistencia, presupuesto, accesos, recuperación y observabilidad.
 
 Go controlará endpoints, orquestación, persistencia e integraciones. Python podrá usarse para procesamiento especializado cuando haya una necesidad concreta, con entradas/salidas explícitas; no se agregan scripts vacíos.
 

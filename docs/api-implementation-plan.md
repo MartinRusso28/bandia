@@ -322,3 +322,7 @@ Este plan propone PostgreSQL, objetos S3 y cola en base; falta elegir proveedore
 Validar antes de depender de cada proveedor: acceso real de escritura/lectura, renovación de credenciales, estados asíncronos, identificadores de solicitud, idempotencia/conciliación, generación musical y evaluación auditiva, límites de medios, costo máximo y derechos/permisos del uso previsto. Los endpoints internos son estables respecto a estas elecciones; el adaptador declara qué capacidades existen y bloquea las que falten.
 
 Este commit sólo amplía el diseño y el plan. No implementa estos endpoints ni cambia agendas, credenciales, gastos o publicaciones.
+
+## 12. Requisitos de despliegue y operación
+
+El [análisis de operación autónoma](autonomous-operations.md) complementa estos contratos. Define la topología inicial propuesta, capacidad persistente fuera del contenedor, detección de horarios incumplidos, consumo/reservas, CI/CD, backups y conciliación posterior a una restauración. Sus valores iniciales son propuestas de configuración, no servicios provisionados. El desarrollo puede apuntar desde el primer hito a un entorno desplegado; las pruebas siguen aisladas y las capacidades se habilitan según evidencia.

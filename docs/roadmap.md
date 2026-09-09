@@ -2,6 +2,8 @@
 
 Contrato detallado: [plan de API e implementación](api-implementation-plan.md). Objetivos y acuerdos: [spec](spec.md).
 
+Análisis de infraestructura y operación: [operación autónoma](autonomous-operations.md). La dirección es desplegar un runtime propio desde los primeros hitos. Primero se completa este diseño; el orden concreto de implementación se acordará después.
+
 La base actual sólo ofrece salud HTTP. Las fases siguientes incorporan comportamiento real; una respuesta simulada no satisface sus criterios de salida.
 
 | Fase | Entrega | Resultado verificable |

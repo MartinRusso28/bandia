@@ -1,6 +1,8 @@
 # BandIA — Especificación de producto y sistema
 
-Versión 0.5 · 9 de septiembre de 2026 · Borrador para trabajar con Martín
+Versión 0.6 · 9 de septiembre de 2026 · Borrador para trabajar con Martín
+
+Diseño de implementación: [plan de API, endpoints, estados y fases](api-implementation-plan.md). Ese documento detalla cómo concretar los objetivos; sus rutas futuras no se consideran implementadas.
 
 ## 1. Propósito y estado de este documento
 
@@ -291,6 +293,7 @@ Próxima iteración: verificar la carga inicial en GitHub; concretar persistenci
 - **0.4:** repositorio público previsto `MartinRusso28/bandia`, distribución de persistencia, recuperación e integración de GitHub. Se registran las direcciones aceptadas de alcance, cadencia, calidad, seguimiento y servicio propio; parámetros concretos pendientes. La conexión y la creación remota no están confirmadas.
 
 - **0.5:** Go como lenguaje principal, Python auxiliar opcional y repositorio público por decisión explícita del manager. Base HTTP separada de la futura operación de la banda. `docs/spec.md` será la fuente de verdad desde su primer commit; el documento previo es una copia histórica.
+- **0.6:** se agrega el plan completo de API y ejecución, con dominios, permisos, trabajos durables, recuperación, modelo persistente y criterios de aceptación. La base y el spec ya se publicaron en `main` en el commit `3eb0e6666514d46933e619423c250d24e37a9c6f`; esta revisión sólo cambia documentación.
 
 ## 15. Lenguaje y primer incremento técnico
 

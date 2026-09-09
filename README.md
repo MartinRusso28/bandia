@@ -50,6 +50,7 @@ make build
 - `docs/spec.md`: especificación del proyecto y decisiones acordadas.
 - `docs/decisions/0001-go.md`: Go como lenguaje principal; Python auxiliar opcional.
 - `docs/roadmap.md`: siguientes entregables y evidencia de aceptación.
+- `docs/api-implementation-plan.md`: catálogo de endpoints, permisos, modelo de datos, estados y plan completo por fases.
 
 Go controlará endpoints, orquestación, persistencia e integraciones. Python podrá usarse para procesamiento especializado cuando haya una necesidad concreta, con entradas/salidas explícitas; no se agregan scripts vacíos.
 
@@ -60,3 +61,5 @@ GitHub guarda código y diseño. Una base persistente guardará memoria y decisi
 ## Próximo hito
 
 Implementar repositorio durable de reuniones y su máquina de estados, con creación idempotente y recuperación después de reiniciar. Conectar agentes reales sólo después de acordar proveedor, credenciales y presupuesto. Ver [roadmap](docs/roadmap.md).
+
+El [plan de implementación de la API](docs/api-implementation-plan.md) define el ciclo completo y el primer PR funcional. Los workers llevarán las decisiones a tareas y resultados sin requerir llamadas manuales por cada paso.

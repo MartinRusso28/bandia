@@ -1,33 +1,27 @@
-# Plan de implementación
+# Roadmap de BandIA
 
-## 0. Base HTTP y diseño
+Contrato detallado: [plan de API e implementación](api-implementation-plan.md). Objetivos y acuerdos: [spec](spec.md).
 
-Incluido: servidor Go, salud, preparación, cierre ordenado, pruebas y spec. Pendiente: ejecutar compilación y pruebas en un entorno con Go. No se declara validación exitosa sin resultado real.
+La base actual sólo ofrece salud HTTP. Las fases siguientes incorporan comportamiento real; una respuesta simulada no satisface sus criterios de salida.
 
-## 1. Estado durable de reuniones
+| Fase | Entrega | Resultado verificable |
+| --- | --- | --- |
+| P0 | Base ejecutable, CI, entorno local, autenticación, PostgreSQL y migraciones | Checkout compilable y pruebas ejecutadas; acceso y readiness correctos. |
+| P1 | Reunión durable y agentes reales | Crear reunión, leer respuestas originales y decisiones; recuperar tras reinicio sin duplicación. |
+| P2 | Scheduler, tareas escritas, informes, eventos y control | Rutina diaria sin disparo humano, retrasos detectados y resultados persistidos. |
+| P3 | Versiones musicales, generación, evaluación y selección | Demo real reproducible, con gasto trazable y calidad evaluada. |
+| P4 | Cuenta X, borradores, imagen/video y publicación | Lanzamiento confirmado, snapshot e ID remoto; reintentos sin duplicados. |
+| P5 | Feedback, síntesis, experimentos y aprendizaje | Comentario real → decisión → cambio → evaluación con fuentes. |
+| P6 | Piloto de 30 días y expansión | Medir autonomía, costo, calidad y fallos; sumar cuentas/respuestas sólo cuando estén habilitadas. |
 
-Elegir almacenamiento y documentar el contrato. Agregar autenticación de administración antes de exponer endpoints operativos de escritura. Crear reuniones con ID y clave idempotente; estados queued/running/incomplete/completed/blocked y errores explícitos. Guardar cada mensaje y el contexto que recibió.
+## Primer PR funcional
 
-Criterio: repetir una solicitud no duplica la reunión; reiniciar recupera el avance confirmado; las escrituras concurrentes no pierden mensajes. No usar memoria de proceso como persistencia final.
+Preparar P0 y el núcleo de P1: migraciones, configuración, autenticación, fichas, instrucciones, creación de reuniones, consulta de mensajes/jobs y worker durable. Si falta proveedor debe guardar e informar el bloqueo. Publicar OpenAPI de las rutas entregadas y probar idempotencia y reinicios contra almacenamiento real.
 
-## 2. Orquestación real y scheduler
+El PR siguiente conecta el adaptador de texto, rondas de agentes y cierre con decisiones/tareas. Sólo entonces se cumple P1; una cola que guarda jobs sin ejecutar agentes no acredita autonomía creativa.
 
-Adaptador de agentes con credenciales configuradas de forma segura, límites de uso y tiempo. Aperturas, réplicas y cierre con mensajes originales y fichas versionadas. Scheduler diario con zona horaria, detección de retrasos y recuperación de trabajos incompletos.
+## Reglas de avance
 
-Criterio: los personajes responden a mensajes efectivamente recibidos; los errores quedan visibles y no se reemplazan por diálogos inventados. Probar recuperación y siete días de operación antes de declarar automatización confiable.
+La banda inicia tareas por decisiones y agendas; el manager puede observar e intervenir sin ser requisito de cada paso. El cierre de una fase exige resultados de su prueba real, no sólo mocks o cantidad de endpoints. Los adaptadores fake se usan en tests aislados.
 
-## 3. Audio privado
-
-Generar, almacenar y evaluar demos reales; registrar costos, parámetros y selección. Validar qué controles musicales y continuidad vocal ofrece el proveedor antes de prometerlos.
-
-Criterio: audio reproducible vinculado a sus decisiones, dentro del presupuesto y con calidad mínima verificable.
-
-## 4. X y aprendizaje
-
-Autorizar cuenta, cargar medio, confirmar procesamiento y publicar con reconciliación de resultados ambiguos. Capturar feedback con fuentes y cobertura; discutirlo y experimentar con cambios.
-
-Criterio: un lanzamiento confirmado y un ciclo comentario real → decisión → cambio → evaluación. Las respuestas públicas automáticas y cuentas individuales quedan para después.
-
-## Parámetros pendientes
-
-Presupuesto numérico, proveedores, almacenamiento, tolerancia de retraso, umbrales de calidad y canal de alertas. El spec distingue acuerdos de propuestas y sigue siendo la referencia funcional.
+PostgreSQL, cola inicial en base y almacenamiento compatible con S3 son propuestas técnicas del plan; todavía no se provisionaron. Proveedores, presupuesto numérico, umbrales de calidad y canal de alertas siguen pendientes. La prueba original de Go tampoco se declaró exitosa: P0 debe compilar, formatear y ejecutar los tests antes de continuar.

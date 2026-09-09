@@ -1,0 +1,12 @@
+/.env
+/.env.*
+!/.env.example
+/bin/
+/data/
+/runs/
+/artifacts/
+*.log
+*.test
+coverage.out
+__pycache__/
+.venv/

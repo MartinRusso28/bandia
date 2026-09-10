@@ -304,9 +304,9 @@ Próxima iteración: verificar la carga inicial en GitHub; concretar persistenci
 
 **Acordado:** Go controla endpoints, orquestación, scheduler, persistencia e integraciones. Python puede incorporarse para procesamiento especializado con contratos explícitos. El control de estado y ejecución permanece en Go.
 
-El primer incremento contiene `cmd/bandia`, `internal/httpapi`, configuración por entorno y pruebas. `GET /healthz` verifica el proceso; `GET /readyz` devuelve 503 porque el runtime de banda aún no está implementado. No se crean APIs de reuniones ficticias ni llamadas de IA simuladas como si fueran reales.
+El bootstrap original sólo exponía salud HTTP. Desde la versión 0.8, el incremento local agrega PostgreSQL, migraciones, autenticación de manager, fichas, instrucciones y reuniones/jobs idempotentes con snapshots. `GET /healthz` verifica el proceso; `GET /readyz` comprueba acceso a la base y checksums del esquema. No significa que haya IA disponible: `/v1/system` declara las capacidades y el worker registra `agent_provider_not_implemented` sin producir mensajes ficticios.
 
-La compilación y ejecución de pruebas requieren Go. El entorno de preparación no lo tenía instalado y la descarga no pudo completarse; no se afirma que estas pruebas hayan pasado. Seguir los comandos del README antes de considerar validada la base.
+La compilación y ejecución de pruebas requieren Go; el arranque completo tiene Docker Compose y volumen persistente. La preparación de 0.8 logró ejecutar tests unitarios con detector de carreras, `go vet` y build. La validación contra PostgreSQL real y reinicios se realiza además en CI: consultar [Actions](https://github.com/MartinRusso28/bandia/actions) para el resultado por commit. No se provisionó producción ni se habilitaron llamadas pagas.
 
 ## 16. Operación autónoma desplegada — análisis consolidado
 

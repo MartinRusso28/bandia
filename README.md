@@ -122,6 +122,8 @@ make integration
 
 Cada test crea y borra únicamente su esquema aleatorio `bandia_test_*`; no trunca tablas de la banda. No apuntar tests a producción. La CI incluye PostgreSQL real, detector de carreras, build de imagen y prueba de Compose con reinicio. Ver su resultado en [Actions](https://github.com/MartinRusso28/bandia/actions); que exista el workflow no significa que haya pasado.
 
+El primer incremento ya pasó ambas suites de CI, incluyendo PostgreSQL y reinicios. [Evidencia, commit validado y límites](docs/local-validation.md).
+
 ## Siguiente incremento
 
 Conectar llamadas independientes de texto y sus checkpoints, conservar prompts/respuestas originales y cerrar decisiones/tareas. Configurar proveedor y límites de gasto antes de cualquier llamada paga. Después: scheduler propio, música, publicación y feedback. [Roadmap](docs/roadmap.md) · [Spec](docs/spec.md) · [Operación autónoma](docs/autonomous-operations.md).

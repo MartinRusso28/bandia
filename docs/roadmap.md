@@ -2,9 +2,9 @@
 
 Contrato detallado: [plan de API e implementación](api-implementation-plan.md). Objetivos y acuerdos: [spec](spec.md).
 
-Análisis de infraestructura y operación: [operación autónoma](autonomous-operations.md). La dirección es desplegar un runtime propio desde los primeros hitos. Primero se completa este diseño; el orden concreto de implementación se acordará después.
+Análisis de infraestructura y operación: [operación autónoma](autonomous-operations.md). La dirección es desplegar un runtime propio. El manager pidió comenzar por la implementación local: P0 y el núcleo durable de P1, dejando proveedores y despliegue productivo para los siguientes incrementos.
 
-La primera implementación local agrega PostgreSQL, migraciones, autenticación, instrucciones y reuniones/jobs durables. El worker registra `agent_provider_not_implemented`; no hay conversaciones inventadas ni agentes conectados. P0 requiere confirmar las pruebas de CI y P1 sigue incompleta. El contrato entregado está en [OpenAPI](openapi.yaml).
+La primera implementación local agrega PostgreSQL, migraciones, autenticación, instrucciones y reuniones/jobs durables. El worker registra `agent_provider_not_implemented`; no hay conversaciones inventadas ni agentes conectados. P0 y el núcleo de persistencia de P1 están [validados](local-validation.md); P1 sigue incompleta hasta conectar los agentes reales. El contrato entregado está en [OpenAPI](openapi.yaml).
 
 | Fase | Entrega | Resultado verificable |
 | --- | --- | --- |

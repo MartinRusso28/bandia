@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Exercise the local API. --restart also restarts this project's Compose services."""
 import argparse
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path
 import subprocess
 import time
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import uuid
 
@@ -51,7 +52,7 @@ def ready():
         try:
             call("/readyz")
             return
-        except (RuntimeError, URLError, TimeoutError):
+        except (RuntimeError, OSError, HTTPException):
             time.sleep(0.5)
     raise RuntimeError("API did not become ready in 45 seconds")
 

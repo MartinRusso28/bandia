@@ -1,0 +1,48 @@
+name: bandia
+
+x-runtime: &runtime
+  build: .
+  image: bandia-local:dev
+  environment:
+    BANDIA_DATABASE_URL: postgres://bandia:${POSTGRES_PASSWORD:?Run python3 scripts/init-local.py}@postgres:5432/bandia?sslmode=disable
+    BANDIA_MANAGER_TOKEN: ${BANDIA_MANAGER_TOKEN:?Run python3 scripts/init-local.py}
+    BANDIA_HTTP_ADDR: 0.0.0.0:8080
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: bandia
+      POSTGRES_DB: bandia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/init-local.py}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bandia -d bandia"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+  migrate:
+    <<: *runtime
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  api:
+    <<: *runtime
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 20s
+
+volumes:
+  pgdata:

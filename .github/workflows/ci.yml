@@ -1,0 +1,48 @@
+name: Local runtime
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: bandia
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: bandia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bandia -d bandia_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      BANDIA_TEST_DATABASE_URL: postgres://bandia:test-only-password@127.0.0.1:5432/bandia_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.1'
+      - run: go mod download
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - run: go build ./cmd/bandia
+      - name: Formatting
+        run: test -z "$(gofmt -l cmd internal)"
+      - name: Image build
+        run: docker build -t bandia-ci .
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 scripts/init-local.py
+      - run: docker compose up --build -d
+      - run: python3 scripts/smoke.py --restart
+      - name: Stop local services
+        if: always()
+        run: docker compose down

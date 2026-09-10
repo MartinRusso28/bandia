@@ -4,7 +4,7 @@ Contrato detallado: [plan de API e implementación](api-implementation-plan.md).
 
 Análisis de infraestructura y operación: [operación autónoma](autonomous-operations.md). La dirección es desplegar un runtime propio desde los primeros hitos. Primero se completa este diseño; el orden concreto de implementación se acordará después.
 
-La base actual sólo ofrece salud HTTP. Las fases siguientes incorporan comportamiento real; una respuesta simulada no satisface sus criterios de salida.
+La primera implementación local agrega PostgreSQL, migraciones, autenticación, instrucciones y reuniones/jobs durables. El worker registra `agent_provider_not_implemented`; no hay conversaciones inventadas ni agentes conectados. P0 requiere confirmar las pruebas de CI y P1 sigue incompleta. El contrato entregado está en [OpenAPI](openapi.yaml).
 
 | Fase | Entrega | Resultado verificable |
 | --- | --- | --- |
@@ -26,4 +26,4 @@ El PR siguiente conecta el adaptador de texto, rondas de agentes y cierre con de
 
 La banda inicia tareas por decisiones y agendas; el manager puede observar e intervenir sin ser requisito de cada paso. El cierre de una fase exige resultados de su prueba real, no sólo mocks o cantidad de endpoints. Los adaptadores fake se usan en tests aislados.
 
-PostgreSQL, cola inicial en base y almacenamiento compatible con S3 son propuestas técnicas del plan; todavía no se provisionaron. Proveedores, presupuesto numérico, umbrales de calidad y canal de alertas siguen pendientes. La prueba original de Go tampoco se declaró exitosa: P0 debe compilar, formatear y ejecutar los tests antes de continuar.
+PostgreSQL y la cola inicial ya tienen implementación local con Compose; no hay servicio productivo provisionado. S3, proveedores, presupuesto numérico, umbrales de calidad y canal de alertas siguen pendientes. Ver el resultado efectivo de los tests en Actions; no equiparar tests omitidos con validación de persistencia.

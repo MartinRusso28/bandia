@@ -1,0 +1,315 @@
+openapi: 3.0.3
+info:
+  title: BandIA local API
+  version: 0.1.0
+  description: >-
+    Delivered local persistence contract, not the full planned API. No AI,
+    scheduler, music or social adapters are connected. Meetings become blocked
+    with agent_provider_not_implemented. All timestamps are RFC3339 UTC.
+servers:
+  - url: http://127.0.0.1:8080
+security:
+  - managerBearer: []
+paths:
+  /healthz:
+    get:
+      security: []
+      responses:
+        '200':
+          description: HTTP process alive
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+    head:
+      security: []
+      responses:
+        '200': { description: HTTP process alive; no body }
+  /readyz:
+    get:
+      security: []
+      responses:
+        '200':
+          description: PostgreSQL accessible and migration checksums match; not agent readiness
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503': { $ref: '#/components/responses/Error' }
+    head:
+      security: []
+      responses:
+        '200': { description: Schema ready; no body }
+        '503': { description: Database or schema unavailable; no body }
+  /v1/system:
+    get:
+      responses:
+        '200':
+          description: Implemented capabilities, not a live provider health probe
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, capabilities]
+                properties:
+                  version: { type: string }
+                  capabilities:
+                    type: object
+                    additionalProperties: { type: boolean }
+                    example: {persistent_meetings: true, agents: false, scheduler: false, music: false, social_publishing: false, social_feedback: false}
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/band:
+    get:
+      responses:
+        '200':
+          description: Current persisted identity
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Band' }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/characters:
+    get:
+      responses:
+        '200':
+          description: Current persisted cast, ordered by position
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Character' }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/manager-instructions:
+    post:
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 8000 }
+      responses:
+        '201':
+          description: Stored instruction; replay returns the original result
+          headers:
+            Idempotency-Replayed: { $ref: '#/components/headers/Replayed' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instruction' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings:
+    post:
+      description: >-
+        Atomically stores meeting, snapshots and job. The topic is trimmed;
+        instruction_ids are a set, sorted and deduplicated. Unknown IDs fail
+        without writing. Only explicitly referenced instructions are included.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [topic]
+              properties:
+                topic: { type: string, minLength: 1, maxLength: 2000 }
+                instruction_ids:
+                  type: array
+                  maxItems: 50
+                  default: []
+                  items: { $ref: '#/components/schemas/ID' }
+      responses:
+        '202':
+          description: Original acceptance, including on replay; read the meeting for current state
+          headers:
+            Location:
+              description: Relative meeting detail URL
+              schema: { type: string }
+            Idempotency-Replayed: { $ref: '#/components/headers/Replayed' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [meeting_id, job_id, status]
+                properties:
+                  meeting_id: { $ref: '#/components/schemas/ID' }
+                  job_id: { $ref: '#/components/schemas/ID' }
+                  status: { type: string, enum: [queued] }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      responses:
+        '200':
+          description: Current meeting state and immutable creation snapshots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings/{id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      responses:
+        '200':
+          description: Original messages in sequence order; empty for the currently blocked meetings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/jobs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      responses:
+        '200':
+          description: Durable work status and capability blocker
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    managerBearer: { type: http, scheme: bearer }
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Scoped per operation and single local manager. Same normalized input
+        replays the original response; changed input returns 409. No expiration
+        in this increment. Retry with the same key after an ambiguous response.
+      schema: { type: string, pattern: '^[A-Za-z0-9._:-]{1,128}$' }
+    ResourceID:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/ID' }
+  headers:
+    Replayed:
+      description: Present with value true when replaying an earlier acceptance
+      schema: { type: boolean }
+  responses:
+    Error:
+      description: >-
+        Error envelope. Invalid key/JSON 400; missing or wrong token 401; unknown
+        resource 404; unsupported method 405 with Allow; idempotency conflict
+        409; body over 64 KiB 413; non-JSON media 415; invalid input or unknown
+        instruction 422; database failure 503. No database details or credentials.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [code, message, request_id]
+                properties:
+                  code: { type: string }
+                  message: { type: string }
+                  request_id: { type: string }
+  schemas:
+    ID: { type: string, pattern: '^[a-f0-9]{32}$' }
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, ready] }
+    Band:
+      type: object
+      required: [id, name, identity]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        identity: { type: string }
+    Character:
+      type: object
+      required: [id, name, role, profile]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        role: { type: string }
+        profile: { type: string }
+    Instruction:
+      type: object
+      required: [id, text, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/ID' }
+        text: { type: string }
+        created_at: { type: string, format: date-time }
+    Meeting:
+      type: object
+      required: [id, job_id, topic, status, band_snapshot, participants, instructions, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ID' }
+        job_id: { $ref: '#/components/schemas/ID' }
+        topic: { type: string }
+        status: { type: string, enum: [queued, blocked] }
+        blocked_reason: { type: string, enum: [agent_provider_not_implemented] }
+        band_snapshot: { $ref: '#/components/schemas/Band' }
+        participants:
+          type: array
+          items: { $ref: '#/components/schemas/Character' }
+        instructions:
+          type: array
+          items: { $ref: '#/components/schemas/Instruction' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Job:
+      type: object
+      required: [id, meeting_id, type, status, attempts, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ID' }
+        meeting_id: { $ref: '#/components/schemas/ID' }
+        type: { type: string, enum: [meeting.execute] }
+        status: { type: string, enum: [queued, blocked] }
+        blocked_reason: { type: string, enum: [agent_provider_not_implemented] }
+        attempts: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Message:
+      type: object
+      required: [id, character_id, sequence, content, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/ID' }
+        character_id: { type: string }
+        sequence: { type: integer, minimum: 1 }
+        content: { type: string }
+        created_at: { type: string, format: date-time }

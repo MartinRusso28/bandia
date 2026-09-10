@@ -121,6 +121,13 @@ func (s *Store) CreateInstruction(ctx context.Context, key, text string) (domain
 
 func (s *Store) CreateMeeting(ctx context.Context, key string, input domain.MeetingInput) (domain.MeetingAccepted, bool, error) {
 	var out domain.MeetingAccepted
+	if input.Mode != "" && input.Mode != "internal" && input.Mode != "external" {
+		return out, false, domain.ErrTurn
+	}
+	// Keep the legacy hash for internal requests, including explicit internal mode.
+	if input.Mode == "internal" {
+		input.Mode = ""
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return out, false, err
@@ -151,18 +158,50 @@ func (s *Store) CreateMeeting(ctx context.Context, key string, input domain.Meet
 		return out, false, err
 	}
 	out = domain.MeetingAccepted{MeetingID: id(), JobID: id(), Status: "queued"}
+	mode, jobType := "internal", "meeting.execute"
+	plan := []string{}
+	if input.Mode == "external" {
+		mode, jobType, out.Status = "external", "meeting.external", "waiting_external"
+		rows, err := tx.Query(ctx, `SELECT id FROM characters ORDER BY position`)
+		if err != nil {
+			return out, false, err
+		}
+		cast, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return out, false, err
+		}
+		if len(cast) != 5 {
+			return out, false, domain.ErrTurn
+		}
+		found := false
+		for _, v := range cast {
+			if v == "productor" {
+				found = true
+			}
+		}
+		if !found {
+			return out, false, domain.ErrTurn
+		}
+		plan = append(plan, cast...)
+		plan = append(plan, cast...)
+		plan = append(plan, "productor")
+	}
+	planJSON, err := json.Marshal(plan)
+	if err != nil {
+		return out, false, err
+	}
 	// Snapshot band and cast in the same statement as the meeting insert.
-	tag, err := tx.Exec(ctx, `INSERT INTO meetings(id,topic,status,band_snapshot,participants,instructions)
-	SELECT $1,$2,'queued',jsonb_build_object('id',b.id,'name',b.name,'identity',b.identity),
-	(SELECT jsonb_agg(jsonb_build_object('id',id,'name',name,'role',role,'profile',profile) ORDER BY position) FROM characters),$3
-	FROM band b WHERE b.id='bandia'`, out.MeetingID, input.Topic, snapshot)
+	tag, err := tx.Exec(ctx, `INSERT INTO meetings(id,topic,status,band_snapshot,participants,instructions,mode,turn_plan)
+	SELECT $1,$2,$4,jsonb_build_object('id',b.id,'name',b.name,'identity',b.identity),
+	(SELECT jsonb_agg(jsonb_build_object('id',id,'name',name,'role',role,'profile',profile) ORDER BY position) FROM characters),$3,$5,$6
+	FROM band b WHERE b.id='bandia'`, out.MeetingID, input.Topic, snapshot, out.Status, mode, planJSON)
 	if err != nil {
 		return out, false, err
 	}
 	if tag.RowsAffected() != 1 {
 		return out, false, errors.New("band seed missing")
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO jobs(id,meeting_id,type,status) VALUES($1,$2,'meeting.execute','queued')`, out.JobID, out.MeetingID)
+	_, err = tx.Exec(ctx, `INSERT INTO jobs(id,meeting_id,type,status) VALUES($1,$2,$3,$4)`, out.JobID, out.MeetingID, jobType, out.Status)
 	if err != nil {
 		return out, false, err
 	}
@@ -170,9 +209,18 @@ func (s *Store) CreateMeeting(ctx context.Context, key string, input domain.Meet
 	return out, false, err
 }
 
+type queryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
 func (s *Store) Meeting(ctx context.Context, meetingID string) (domain.Meeting, error) {
+	return readMeeting(ctx, s.pool, meetingID)
+}
+
+func readMeeting(ctx context.Context, q queryer, meetingID string) (domain.Meeting, error) {
 	var m domain.Meeting
-	err := s.pool.QueryRow(ctx, `SELECT m.id,j.id,m.topic,m.status,coalesce(m.blocked_reason,''),m.band_snapshot,m.participants,m.instructions,m.created_at,m.updated_at FROM meetings m JOIN jobs j ON j.meeting_id=m.id WHERE m.id=$1`, meetingID).Scan(&m.ID, &m.JobID, &m.Topic, &m.Status, &m.BlockedReason, &m.Band, &m.Participants, &m.Instructions, &m.CreatedAt, &m.UpdatedAt)
+	err := q.QueryRow(ctx, `SELECT m.id,j.id,m.topic,m.status,coalesce(m.blocked_reason,''),m.band_snapshot,m.participants,m.instructions,m.created_at,m.updated_at,m.mode,m.turn_plan,m.closure FROM meetings m JOIN jobs j ON j.meeting_id=m.id WHERE m.id=$1`, meetingID).Scan(&m.ID, &m.JobID, &m.Topic, &m.Status, &m.BlockedReason, &m.Band, &m.Participants, &m.Instructions, &m.CreatedAt, &m.UpdatedAt, &m.Mode, &m.TurnPlan, &m.Closure)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = domain.ErrNotFound
 	}
@@ -187,7 +235,11 @@ func (s *Store) Messages(ctx context.Context, meetingID string) ([]domain.Messag
 	if !exists {
 		return nil, domain.ErrNotFound
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id,character_id,sequence,content,created_at FROM meeting_messages WHERE meeting_id=$1 ORDER BY sequence`, meetingID)
+	return readMessages(ctx, s.pool, meetingID)
+}
+
+func readMessages(ctx context.Context, q queryer, meetingID string) ([]domain.Message, error) {
+	rows, err := q.Query(ctx, `SELECT prompt,agent_run_id,context_hash,history_through,origin,id,character_id,sequence,content,created_at FROM meeting_messages WHERE meeting_id=$1 ORDER BY sequence`, meetingID)
 	if err != nil {
 		return nil, err
 	}

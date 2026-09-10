@@ -1,6 +1,6 @@
 # BandIA — Especificación de producto y sistema
 
-Versión 0.8 · 10 de septiembre de 2026 · Borrador para trabajar con Martín
+Versión 0.9 · 10 de septiembre de 2026 · Borrador para trabajar con Martín
 
 Diseño de implementación: [plan de API, endpoints, estados y fases](api-implementation-plan.md). Ese documento detalla cómo concretar los objetivos; sus rutas futuras no se consideran implementadas.
 
@@ -288,6 +288,8 @@ Este apartado no sustituye una auditoría técnica de los archivos o integracion
 Próxima iteración: verificar la carga inicial en GitHub; concretar persistencia, proveedores, presupuesto y umbrales de calidad; convertir las etapas 1–3 y la captura de feedback en contratos técnicos y tareas implementables. Mantener este spec como documento vivo con cambios explícitos, separado del estado operativo y las conversaciones del elenco.
 
 ## 14. Historial de cambios
+
+- **0.9:** POC de [reuniones externas](external-meetings.md) acordada para usar agentes de ChatGPT/Codex temporalmente y persistir cada turno en Go/PostgreSQL. Endpoints de contexto, turnos y cierre; idempotencia, plan fijo de 11 turnos y procedencia declarada. No hay todavía un enlace activo desde el chat al servicio ni una conversación real validada por ese enlace. No necesita API key de modelos; sigue sujeta a cuota y disponibilidad de los agentes de la sesión.
 
 - **0.8:** primer incremento local: PostgreSQL, migraciones, autenticación, instrucciones y reuniones/jobs idempotentes con snapshots. El worker guarda bloqueos por adaptador de agentes no implementado. Compose y tests incluidos; consultar CI para evidencia efectiva. No se conectan IA/redes ni se modifica la tarea anterior. El [OpenAPI entregado](openapi.yaml) se separa del catálogo de rutas futuras.
 

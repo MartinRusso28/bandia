@@ -4,9 +4,9 @@ Banda virtual de agentes de IA, con autonomía creativa, memoria y aprendizaje d
 
 ## Estado de esta entrega
 
-Primera implementación local en **Go + PostgreSQL**. Guarda instrucciones, reuniones, snapshots del elenco y trabajos en transacciones. Incluye autenticación de manager, idempotencia, migraciones versionadas y un worker que registra bloqueos reales.
+Implementación local en **Go + PostgreSQL**. Guarda instrucciones, reuniones, snapshots del elenco y trabajos en transacciones. Incluye autenticación de manager, idempotencia, migraciones versionadas y un worker que registra bloqueos reales. La versión 0.2 agrega [reuniones externas](docs/external-meetings.md): agentes ejecutados fuera del servidor pueden persistir turnos originales, recuperar contexto y cerrar decisiones.
 
-**Todavía no hay agentes conectados, conversaciones generadas, scheduler, música ni publicaciones en X.** Una reunión pasa de `queued` a `blocked`, con motivo `agent_provider_not_implemented`; no se inventan mensajes. No hace llamadas pagas ni modifica la automatización anterior de ChatGPT.
+**Todavía no hay una conexión activa con los agentes de este chat, scheduler, música ni publicaciones en X.** Una reunión interna pasa de `queued` a `blocked`, con motivo `agent_provider_not_implemented`. Con `mode: external` queda en `waiting_external` y recibe turnos mediante HTTP; al completar las dos rondas y cierre puede pasar a `completed`. No hace llamadas pagas ni modifica la automatización anterior de ChatGPT. La CI sólo envía fixtures, no conversaciones reales.
 
 `/readyz` comprueba base y versión del esquema, no disponibilidad artística. `/v1/system` declara por separado las capacidades implementadas. Esto completa la infraestructura inicial, no P1 ni la operación autónoma del spec.
 
@@ -74,10 +74,13 @@ La aceptación devuelve `meeting_id`, `job_id` y `status: queued`. Consultá los
 | `POST /v1/manager-instructions` | Guarda `{text}`; devuelve 201. |
 | `POST /v1/meetings` | Guarda reunión y job atómicamente; devuelve 202. |
 | `GET /v1/meetings/{id}` | Estado, participantes e instrucciones congelados al crear. |
-| `GET /v1/meetings/{id}/messages` | Mensajes originales; por ahora `data: []`. |
+| `GET /v1/meetings/{id}/messages` | Mensajes originales; vacíos en las reuniones internas bloqueadas. |
+| `GET /v1/meetings/{id}/context` | Contexto consistente y próximo turno de una reunión externa. |
+| `POST /v1/meetings/{id}/turns` | Guarda prompt, respuesta y procedencia declarada, sin duplicados. |
+| `POST /v1/meetings/{id}/close` | Persiste cierre de una reunión externa completa. |
 | `GET /v1/jobs/{id}` | Estado, intentos y motivo de bloqueo. |
 
-Todas las rutas `/v1` requieren `Authorization: Bearer …`. Ambos POST requieren `Idempotency-Key`. El contrato de **lo implementado** está en [OpenAPI](docs/openapi.yaml); el catálogo completo futuro sigue en [plan de API](docs/api-implementation-plan.md). Listados paginados, edición del elenco, retry y control del worker no están entregados aún.
+Todas las rutas `/v1` requieren `Authorization: Bearer …`. Todos los POST requieren `Idempotency-Key`. El contrato de **lo implementado** está en [OpenAPI](docs/openapi.yaml); el catálogo completo futuro sigue en [plan de API](docs/api-implementation-plan.md). Listados paginados, edición del elenco, retry y control del worker no están entregados aún.
 
 ## Persistencia y recuperación
 

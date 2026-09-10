@@ -18,6 +18,8 @@ La primera implementación local agrega PostgreSQL, migraciones, autenticación,
 
 ## Primer PR funcional
 
+Incremento 0.2: [POC de reuniones externas](external-meetings.md). La API recibe turnos con contexto e idempotencia y guarda el cierre; todavía falta conectar un orquestador accesible desde ChatGPT y ejecutar una conversación real por este puente. Este modo no acredita un scheduler autónomo ni un adaptador de modelos propio.
+
 Preparar P0 y el núcleo de P1: migraciones, configuración, autenticación, fichas, instrucciones, creación de reuniones, consulta de mensajes/jobs y worker durable. Si falta proveedor debe guardar e informar el bloqueo. Publicar OpenAPI de las rutas entregadas y probar idempotencia y reinicios contra almacenamiento real.
 
 El PR siguiente conecta el adaptador de texto, rondas de agentes y cierre con decisiones/tareas. Sólo entonces se cumple P1; una cola que guarda jobs sin ejecutar agentes no acredita autonomía creativa.

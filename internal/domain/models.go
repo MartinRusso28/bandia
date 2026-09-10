@@ -9,6 +9,7 @@ var (
 	ErrNotFound    = errors.New("not found")
 	ErrConflict    = errors.New("idempotency key reused with different input")
 	ErrInstruction = errors.New("unknown instruction")
+	ErrTurn        = errors.New("invalid external turn or meeting state")
 )
 
 type Band struct {
@@ -31,11 +32,15 @@ type Instruction struct {
 }
 
 type MeetingInput struct {
+	Mode           string   `json:"mode,omitempty"`
 	Topic          string   `json:"topic"`
 	InstructionIDs []string `json:"instruction_ids"`
 }
 
 type Meeting struct {
+	Mode          string        `json:"mode"`
+	TurnPlan      []string      `json:"turn_plan"`
+	Closure       *Closure      `json:"closure,omitempty"`
 	ID            string        `json:"id"`
 	JobID         string        `json:"job_id"`
 	Topic         string        `json:"topic"`
@@ -66,9 +71,38 @@ type Job struct {
 }
 
 type Message struct {
-	ID          string    `json:"id"`
-	CharacterID string    `json:"character_id"`
-	Sequence    int       `json:"sequence"`
-	Content     string    `json:"content"`
-	CreatedAt   time.Time `json:"created_at"`
+	Prompt         string    `json:"prompt"`
+	AgentRunID     string    `json:"agent_run_id"`
+	ContextHash    string    `json:"context_hash"`
+	HistoryThrough int       `json:"history_through"`
+	Origin         string    `json:"origin"`
+	ID             string    `json:"id"`
+	CharacterID    string    `json:"character_id"`
+	Sequence       int       `json:"sequence"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type ExternalContext struct {
+	Meeting         Meeting   `json:"meeting"`
+	Messages        []Message `json:"messages"`
+	NextSequence    int       `json:"next_sequence"`
+	NextCharacterID string    `json:"next_character_id"`
+	ContextHash     string    `json:"context_hash"`
+}
+
+type TurnInput struct {
+	Sequence       int    `json:"sequence"`
+	CharacterID    string `json:"character_id"`
+	HistoryThrough int    `json:"history_through"`
+	ContextHash    string `json:"context_hash"`
+	AgentRunID     string `json:"agent_run_id"`
+	Prompt         string `json:"prompt"`
+	Content        string `json:"content"`
+}
+
+type Closure struct {
+	LastSequence int      `json:"last_sequence"`
+	Summary      string   `json:"summary"`
+	Decisions    []string `json:"decisions"`
 }

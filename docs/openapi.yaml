@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
   title: BandIA local API
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     Delivered local persistence contract, not the full planned API. No AI,
-    scheduler, music or social adapters are connected. Meetings become blocked
-    with agent_provider_not_implemented. All timestamps are RFC3339 UTC.
+    scheduler, music or social adapters are connected. Internal meetings become
+    blocked; external meetings ingest original turns from an authenticated
+    external orchestrator. Provenance is reported, not independently verified.
 servers:
   - url: http://127.0.0.1:8080
 security:
@@ -114,7 +115,8 @@ paths:
   /v1/meetings:
     post:
       description: >-
-        Atomically stores meeting, snapshots and job. The topic is trimmed;
+        Atomically stores meeting, snapshots and job. External mode waits for
+        two rounds of five participants plus a producer closing turn. The topic is trimmed;
         instruction_ids are a set, sorted and deduplicated. Unknown IDs fail
         without writing. Only explicitly referenced instructions are included.
       parameters:
@@ -128,6 +130,7 @@ paths:
               additionalProperties: false
               required: [topic]
               properties:
+                mode: { type: string, enum: [internal, external], default: internal }
                 topic: { type: string, minLength: 1, maxLength: 2000 }
                 instruction_ids:
                   type: array
@@ -150,7 +153,7 @@ paths:
                 properties:
                   meeting_id: { $ref: '#/components/schemas/ID' }
                   job_id: { $ref: '#/components/schemas/ID' }
-                  status: { type: string, enum: [queued] }
+                  status: { type: string, enum: [queued, waiting_external] }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
@@ -202,6 +205,82 @@ paths:
               schema: { $ref: '#/components/schemas/Job' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings/{id}/context:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      responses:
+        '200':
+          description: Consistent saved context; next_character_id is empty after all turns or closure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExternalContext' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings/{id}/turns:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    post:
+      description: >-
+        Append exactly the next external turn with the hash supplied by context.
+        Original prompt and content are not trimmed. State, context, speaker or
+        execution-ID conflicts return 409 turn_conflict. Same-key replay is
+        accepted even after closure. Provenance is declared by the caller.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TurnInput' }
+      responses:
+        '201':
+          description: Original saved message, including on replay
+          headers:
+            Idempotency-Replayed: { $ref: '#/components/headers/Replayed' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /v1/meetings/{id}/close:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    post:
+      description: >-
+        Requires all 11 turns. Atomically stores reported closure and completes
+        meeting/job. Decisions are records, not automatically executed tasks.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Closure' }
+      responses:
+        '200':
+          description: Closed meeting, or original response on same-key replay
+          headers:
+            Idempotency-Replayed: { $ref: '#/components/headers/Replayed' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meeting' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
@@ -281,7 +360,10 @@ components:
         id: { $ref: '#/components/schemas/ID' }
         job_id: { $ref: '#/components/schemas/ID' }
         topic: { type: string }
-        status: { type: string, enum: [queued, blocked] }
+        status: { type: string, enum: [queued, blocked, waiting_external, completed] }
+        mode: { type: string, enum: [internal, external] }
+        turn_plan: { type: array, items: { type: string } }
+        closure: { $ref: '#/components/schemas/Closure' }
         blocked_reason: { type: string, enum: [agent_provider_not_implemented] }
         band_snapshot: { $ref: '#/components/schemas/Band' }
         participants:
@@ -298,8 +380,8 @@ components:
       properties:
         id: { $ref: '#/components/schemas/ID' }
         meeting_id: { $ref: '#/components/schemas/ID' }
-        type: { type: string, enum: [meeting.execute] }
-        status: { type: string, enum: [queued, blocked] }
+        type: { type: string, enum: [meeting.execute, meeting.external] }
+        status: { type: string, enum: [queued, blocked, waiting_external, completed] }
         blocked_reason: { type: string, enum: [agent_provider_not_implemented] }
         attempts: { type: integer, minimum: 0 }
         created_at: { type: string, format: date-time }
@@ -313,3 +395,41 @@ components:
         sequence: { type: integer, minimum: 1 }
         content: { type: string }
         created_at: { type: string, format: date-time }
+        prompt: { type: string }
+        agent_run_id: { type: string }
+        context_hash: { type: string }
+        history_through: { type: integer, minimum: 0 }
+        origin: { type: string, enum: [legacy_unknown, external_agent_reported] }
+    TurnInput:
+      type: object
+      additionalProperties: false
+      required: [sequence, history_through, character_id, context_hash, agent_run_id, prompt, content]
+      properties:
+        sequence: { type: integer, minimum: 1, maximum: 11 }
+        history_through: { type: integer, minimum: 0, maximum: 10 }
+        character_id: { type: string, minLength: 1, maxLength: 100 }
+        context_hash: { type: string, minLength: 64, maxLength: 64 }
+        agent_run_id: { type: string, minLength: 1, maxLength: 200 }
+        prompt: { type: string, minLength: 1, maxLength: 32000 }
+        content: { type: string, minLength: 1, maxLength: 8000 }
+    Closure:
+      type: object
+      additionalProperties: false
+      required: [last_sequence, summary, decisions]
+      properties:
+        last_sequence: { type: integer, enum: [11] }
+        summary: { type: string, minLength: 1, maxLength: 8000 }
+        decisions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 2000 }
+    ExternalContext:
+      type: object
+      required: [meeting, messages, next_sequence, next_character_id, context_hash]
+      properties:
+        meeting: { $ref: '#/components/schemas/Meeting' }
+        messages: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        next_sequence: { type: integer }
+        next_character_id: { type: string }
+        context_hash: { type: string }

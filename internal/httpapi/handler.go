@@ -29,6 +29,9 @@ type Repository interface {
 	Meeting(context.Context, string) (domain.Meeting, error)
 	Messages(context.Context, string) ([]domain.Message, error)
 	Job(context.Context, string) (domain.Job, error)
+	ExternalContext(context.Context, string) (domain.ExternalContext, error)
+	AppendTurn(context.Context, string, string, domain.TurnInput) (domain.Message, bool, error)
+	CloseExternal(context.Context, string, string, domain.Closure) (domain.Meeting, bool, error)
 }
 
 type api struct{ repo Repository }
@@ -60,7 +63,7 @@ func NewHandler(repo Repository, managerToken string) http.Handler {
 		if !allow(w, r, "GET") {
 			return
 		}
-		respond(w, r, 200, map[string]any{"version": "0.1.0", "capabilities": map[string]bool{"persistent_meetings": true, "agents": false, "scheduler": false, "music": false, "social_publishing": false, "social_feedback": false}})
+		respond(w, r, 200, map[string]any{"version": "0.2.0", "capabilities": map[string]bool{"persistent_meetings": true, "external_meetings": true, "agents": false, "scheduler": false, "music": false, "social_publishing": false, "social_feedback": false}})
 	})
 	mux.HandleFunc("/v1/band", func(w http.ResponseWriter, r *http.Request) {
 		if !allow(w, r, "GET") {
@@ -78,6 +81,15 @@ func NewHandler(repo Repository, managerToken string) http.Handler {
 	})
 	mux.HandleFunc("/v1/manager-instructions", a.instruction)
 	mux.HandleFunc("/v1/meetings", a.meeting)
+	mux.HandleFunc("/v1/meetings/{id}/context", func(w http.ResponseWriter, r *http.Request) {
+		if !allow(w, r, "GET") || !validID(w, r) {
+			return
+		}
+		v, err := a.repo.ExternalContext(r.Context(), r.PathValue("id"))
+		result(w, r, v, err)
+	})
+	mux.HandleFunc("/v1/meetings/{id}/turns", a.turn)
+	mux.HandleFunc("/v1/meetings/{id}/close", a.closeExternal)
 	mux.HandleFunc("/v1/meetings/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !allow(w, r, "GET") || !validID(w, r) {
 			return
@@ -158,6 +170,10 @@ func (a *api) meeting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input.Topic = strings.TrimSpace(input.Topic)
+	if input.Mode != "" && input.Mode != "internal" && input.Mode != "external" {
+		fail(w, r, 422, "invalid_input", "mode must be internal or external")
+		return
+	}
 	if input.Topic == "" || utf8.RuneCountInString(input.Topic) > 2000 || len(input.InstructionIDs) > 50 {
 		fail(w, r, 422, "invalid_input", "topic must contain 1–2000 characters; at most 50 instruction_ids")
 		return
@@ -242,6 +258,8 @@ func result(w http.ResponseWriter, r *http.Request, v any, err error) {
 		fail(w, r, 409, "idempotency_conflict", "This key was already used with different input")
 	case errors.Is(err, domain.ErrInstruction):
 		fail(w, r, 422, "unknown_instruction", "An instruction_id does not exist")
+	case errors.Is(err, domain.ErrTurn):
+		fail(w, r, 409, "turn_conflict", "Meeting state, turn order, execution ID or context does not match; reload context")
 	default:
 		fail(w, r, 503, "storage_unavailable", "Storage operation failed; retry with the same idempotency key")
 	}
